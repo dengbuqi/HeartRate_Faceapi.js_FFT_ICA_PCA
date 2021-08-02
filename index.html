@@ -9,36 +9,74 @@ http://creativecommons.org/publicdomain/zero/1.0/
     <meta charset="utf-8">
     <meta name="viewport" content="width=320, initial-scale=1">
     <title>Online Heart Rate Monitor</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script type="text/javascript" src="face-api.min.js"></script>
   </head>
   <body>
-    <p>Allow this website to use your webcam, then place your finger lightly over the camera and wait for the trace to stabilise.</p>
-    <p>You will have most success when there is light behind your finger.</p>
-    <video id="v" width="100" height="100" style="display:none" muted></video>
-    <canvas id="c" width="100" height="100" style="display:none"></canvas>
+    <p>Allow this website to use your webcam, then detect your face over the camera and wait for the trace to stabilise.</p>
+    <div style="position: relative;">
+      <video onloadedmetadata="" width="640" height="480" id="v" muted></video>
+      <canvas style="position: absolute; top: 0px; left: 0px;" id="overlay" width="640" height="480"></canvas>
+    </div>
+    
+    
+    <br/>
+    <canvas id="c" width="640" height="480" style="display:none"></canvas>
+    <br/>
+    
     <canvas id="g" width="320" height="30"></canvas><br/>
     <div id="bpm">--</div>
-    <p><a href="https://github.com/gfwilliams/HeartRate">GitHub</a></p>
+    <button onclick="pausevideo()">Stop</button>
+    <button onclick="playvideo()">Play</button>
+    
+
     <p>Also, check out <a href="http://www.puck-js.com/">Puck.js</a></p>
   <script>
-var video, width, height, context, graphCanvas, graphContext, bpm;
-var hist = [];
-navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+  var video, width, height, context, graphCanvas, graphContext, bpm;
+  var hist = [];
+  var Forehead, Leftcheek, Rightcheek;
+  navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+  var time = Date.now || function() {
+   return +new Date;
+  };
+  var constraints = {video: true, audio:false};
 
-var constraints = {video: true, audio:false};
+  function pausevideo(){
+    video.pause();
+  }
 
-function initialize() {
-navigator.mediaDevices.enumerateDevices().then(function(devices) {
-  devices.forEach(function(device) {
-    console.log(device.kind + ": " + device.label +
-                " id = " + device.deviceId/*, JSON.stringify(device,null,2)*/);
-    if (device.kind=="videoinput" /*&& constraints.video===true*/)
-      constraints.video = { optional: [{sourceId: device.deviceId}, { fillLightMode: "on" }] };
-  });
-  initialize2();
-}).catch(function(err) {
-  console.log(err.name + ": " + err.message);
-});
-}
+  function playvideo(){
+    video.play();
+  }
+
+  async function initialize() {
+    MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+    // faceapi.SsdMobilenetv1Options({ minConfidence })
+    // faceapi.nets.ssdMobilenetv1.loadFromUri(modelurl)
+    // faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    // faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    // faceapi.nets.FaceLandmarkModel.loadFromUri(MODEL_URL),
+    
+    // faceapi.loadTinyFaceDetectorModel(MODEL_URL)
+    // faceapi.loadFaceLandmarkTinyModel(MODEL_URL)
+    
+    await faceapi.loadFaceLandmarkModel(MODEL_URL)
+    await faceapi.loadTinyFaceDetectorModel(MODEL_URL)
+
+
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+      devices.forEach(function(device) {
+        console.log(device.kind + ": " + device.label +
+                    " id = " + device.deviceId/*, JSON.stringify(device,null,2)*/);
+        if (device.kind=="videoinput" /*&& constraints.video===true*/)
+          constraints.video = { optional: [{sourceId: device.deviceId}, { fillLightMode: "on" }] };
+      });
+      initialize2();
+    }).catch(function(err) {
+      console.log(err.name + ": " + err.message);
+    });
+  }
 
   function initialize2() {
     // The source video.
@@ -75,9 +113,24 @@ navigator.mediaDevices.enumerateDevices().then(function(devices) {
   }
 
   function draw() {
-    var frame = readFrame();
-    if (frame) {
-      getIntensity(frame.data);      
+    if(video.paused || video.ended){
+      
+    }
+    else{
+      var frame = readFrame()
+      if (frame) {
+        try {
+          detectFace()
+          forehead_data = context.getImageData(Forehead[0],Forehead[1],Forehead[2],Forehead[3]).data
+          leftcheek_data = context.getImageData(Leftcheek[0],Leftcheek[1],Leftcheek[2],Leftcheek[3]).data
+          rightcheek_data = context.getImageData(Rightcheek[0],Rightcheek[1],Rightcheek[2],Rightcheek[3]).data
+          data =  new Uint8ClampedArray(forehead_data,leftcheek_data,rightcheek_data)
+          getIntensity(data); 
+          // getIntensity(frame.data);  
+        } catch (e){
+          
+        }
+      }
     }
 
     // Wait for the next frame.
@@ -94,11 +147,11 @@ navigator.mediaDevices.enumerateDevices().then(function(devices) {
 
     return context.getImageData(0, 0, width, height);
   }
-
+  
   function getIntensity(data) {
     var len = data.length;
     var sum = 0;
-
+    console.log(data.length);
     for (var i = 0, j = 0; j < len; i++, j += 4) {
       sum += data[j] + data[j+1] + data[j+2];
     }
@@ -154,8 +207,51 @@ navigator.mediaDevices.enumerateDevices().then(function(devices) {
       bpm.innerHTML = "-- BPM";
     }
   }
-
+  
   addEventListener("DOMContentLoaded", initialize);
+
+  async function detectFace() {
+
+      if(video.paused || video.ended)
+        return ;
+        // return setTimeout(() => detectFace())
+
+      const inputSize = 512;
+      const scoreThreshold = 0.5;
+      const OPTION = new faceapi.TinyFaceDetectorOptions({
+          inputSize,
+          scoreThreshold
+      });
+
+
+      const result = await faceapi.detectSingleFace(video, OPTION).withFaceLandmarks()
+
+      if (result) {
+        const top = result.detection.box.top
+        const lms = result.landmarks.positions
+
+        const canvas = $('#overlay').get(0)
+        var ctx = canvas.getContext("2d")
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.strokeStyle = "#FF0000";
+
+        Forehead = [lms[18].x, top, -(lms[18].x-lms[25].x), -(top-lms[19].y)*0.6]
+        ctx.strokeRect(Forehead[0],Forehead[1],Forehead[2],Forehead[3])
+
+        Leftcheek = [lms[4].x, lms[1].y, lms[48].x-lms[4].x, lms[50].y-lms[1].y]
+        ctx.strokeRect(Leftcheek[0],Leftcheek[1],Leftcheek[2],Leftcheek[3])
+
+        Rightcheek = [lms[12].x, lms[15].y, lms[54].x-lms[12].x, lms[52].y-lms[15].y]
+        ctx.strokeRect(Rightcheek[0],Rightcheek[1],Rightcheek[2],Rightcheek[3])
+        // const dims = faceapi.matchDimensions(canvas, videoEl, true)
+        // const resizedResult = faceapi.resizeResults(result, dims)
+        // faceapi.draw.drawDetections(canvas, resizedResult)
+        // faceapi.draw.drawFaceLandmarks(canvas, resizedResult)
+      }
+
+      // setTimeout(() => detectFace())
+    }
+
   </script>
   </body>
 </html>

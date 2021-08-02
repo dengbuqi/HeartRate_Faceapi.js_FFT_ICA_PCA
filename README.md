@@ -1,7 +1,6 @@
 # HeartRate
 
-An online heart-rate monitor using getUserMedia
+An online heart-rate monitor using getUserMedia, Faceapi, FFT, ICA and PCA.
 
 ![](screenshot.png)
 
-<a href="https://gfwilliams.github.io/HeartRate/">Try it out!</a>
