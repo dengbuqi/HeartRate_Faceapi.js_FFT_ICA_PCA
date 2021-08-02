@@ -8,6 +8,9 @@ Download this repo and open the index.html in brower.
 
 # TO-DO
 Color intensity
+
 FFT
+
 ICA
+
 PCA
