@@ -16,8 +16,8 @@ http://creativecommons.org/publicdomain/zero/1.0/
   <body>
     <p>Allow this website to use your webcam, then detect your face over the camera and wait for the trace to stabilise.</p>
     <div style="position: relative;">
-      <video onloadedmetadata="" width="640" height="480" id="v" muted></video>
-      <canvas style="position: absolute; top: 0px; left: 0px;" id="overlay" width="640" height="480"></canvas>
+      <video onloadedmetadata="" id="v" muted></video>
+      <canvas style="position: absolute; top: 0px; left: 0px;" id="overlay"></canvas>
     </div>
     
     
@@ -92,8 +92,8 @@ return check;
   function initialize2() {
     // The source video.
     video = document.getElementById("v");
-    width = video.width;
-    height = video.height;
+    // width = video.width;
+    // height = video.height;
 
     // The target canvas.
     var canvas = document.getElementById("c");
@@ -117,6 +117,12 @@ return check;
   }
 
   function startStream(stream) {
+    info = stream.getTracks()[0].getSettings();
+    $('#overlay').get(0).width = info.width;
+    $('#overlay').get(0).height = info.height;
+    width = info.width;
+    height = info.height;
+    console.log(width, height);
     video.srcObject = stream;
     video.play();
     // Ready! Let's start drawing.
@@ -162,7 +168,6 @@ return check;
   function getIntensity(data) {
     var len = data.length;
     var sum = 0;
-    console.log(data.length);
     for (var i = 0, j = 0; j < len; i++, j += 4) {
       sum += data[j] + data[j+1] + data[j+2];
     }
